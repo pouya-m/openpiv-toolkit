@@ -781,7 +781,7 @@ class PIVProcessThread(QThread):
         self.stop_timer = QTimer(self)
         self.stop_timer.timeout.connect(self.stopProcess)
         self.stop_timer.start(500)
-        self.save_type = 'dat'
+        self.save_type = 'h5'
         
     progress_sig = Signal(str)  #signals have to be defined as class variables
 
