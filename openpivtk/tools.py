@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 import glob
-import scipy
 import sys
 import os.path
 import multiprocessing
