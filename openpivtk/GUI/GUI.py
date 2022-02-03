@@ -61,7 +61,7 @@ class MainPIV(Main_PIV.Ui_MainWindow, QtWidgets.QMainWindow):
         self.first_plot = True
         self.actionLoad_Files.triggered.connect(self.selectFiles)
         self.run_progress_TE.ensureCursorVisible()
-        self.actionExit.triggered.connect(qApp.quit)
+        self.actionExit.triggered.connect(self.close)
         self.actionClear_Files.triggered.connect(self.clearList)
         self.actionAbout.triggered.connect(self.showAbout)
         self.apply_settings_PB.clicked.connect(lambda: self.updateList(setchange=1))
@@ -74,6 +74,7 @@ class MainPIV(Main_PIV.Ui_MainWindow, QtWidgets.QMainWindow):
         self.updatePlotSettings()
         # Process tab initialization
         self.exp_directory_TB.clicked.connect(lambda: self.getExpDir(tab='process'))
+        self.pre_sm_path_TB.clicked.connect(self.getStaticMaskPath)
         self.process_savesettings_PB.clicked.connect(self.saveProSettings)
         self.process_loadsettings_PB.clicked.connect(self.loadProSettings)
         self.run_start_PB.clicked.connect(self.startBatchProcessing)
@@ -276,6 +277,12 @@ class MainPIV(Main_PIV.Ui_MainWindow, QtWidgets.QMainWindow):
             self.mdl_dir_LE.setText(dir_path)
         elif tab == 'frequency':
             self.freq_dir_LE.setText(dir_path)
+    
+    def getStaticMaskPath(self):
+        sm_path, ext = QtWidgets.QFileDialog.getOpenFileName(self, 'Select Static Mask File', 'StaticMask.TIF')
+        if sm_path == '':
+            return
+        self.pre_sm_path_LE.setText(os.path.basename(sm_path))
 
     def saveProSettings(self, path=False):
         #getting the file path
@@ -815,11 +822,22 @@ class PIVProcessThread(QThread):
                         imsave(os.path.join(analysis_path, 'background_b.TIF'), background_b)
                 else:
                     background_a, background_b = None, None
+
+                if self.pre['sm_st'] == 'True':
+                    st_mask_file = os.path.join(analysis_path, self.pre['sm_pa'])
+                    if os.path.exists(st_mask_file):
+                        st_mask = tools.imread(st_mask_file)
+                        self.progress_sig.emit('static mask applied...')
+                    else:
+                        self.progress_sig.emit('static mask missing...')
+                        st_mask = None
+                else:
+                    st_mask = None
                 
                 # piv+post process
                 self.progress_sig.emit('main process...')
                 task.n_files = int(self.exp['nf'])
-                Process = partial(mainPIVProcess, bga=background_a, bgb=background_b, pro=self.pro, pos=self.pos, processed_files=self.processed_files)
+                Process = partial(mainPIVProcess, st_mask=st_mask, bga=background_a, bgb=background_b, pro=self.pro, pos=self.pos, processed_files=self.processed_files)
                 data = task.run( func = Process, n_cpus=int(self.pro['nc']) )
 
                 # initialize variables to hold data
@@ -851,7 +869,7 @@ class PIVProcessThread(QThread):
             print('trying to quit...')
 
 
-def mainPIVProcess( args, bga, bgb, pro, pos, processed_files):
+def mainPIVProcess( args, st_mask, bga, bgb, pro, pos, processed_files):
     # unpacking the arguments
     file_a, file_b, counter = args
     # read images
@@ -861,6 +879,10 @@ def mainPIVProcess( args, bga, bgb, pro, pos, processed_files):
     if bga is not None:
         frame_a = frame_a - bga
         frame_b = frame_b - bgb
+    # apply static mask
+    if st_mask is not None:
+        frame_a[st_mask == 255] = 0
+        frame_b[st_mask == 255] = 0
     # process image pair with piv algorithm.
     u, v, sig2noise = pyprocess.extended_search_area_piv( frame_a, frame_b, \
         window_size=int(pro['ws']), overlap=int(pro['ol']), dt=float(pro['ts']), search_area_size=int(pro['sa']), sig2noise_method=pro['s2n'])

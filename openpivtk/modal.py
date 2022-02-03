@@ -448,7 +448,7 @@ def filt_POD(path, nfiles, pat, f_cf, fs, lfmodes, nmode):
     # calculate the low freq modes projection 
     u_lf = u_lf[:,lfmodes]
     a_lf = np.matmul(u_lf.T, A_og)
-    A_lf = np.zeros(modal.A.shape, np.float)
+    A_lf = np.zeros(modal.A.shape, float)
     for i in range(modal.A.shape[1]):
         for j in range(u_lf.shape[1]):
             A_lf[:,i] += a_lf[j,i] * u_lf[:,j]
@@ -542,9 +542,9 @@ if __name__ == "__main__":
     # modal.svd(nmode=20)
 
     # apply pod to low and high freq separately
-    path = r'G:\Re11_medium\theta048deg\Analysis'
+    path = r'E:\Symmetrical Tripwire\PIV\SSW\036deg\Analysis'
     nfiles = 1000
     pat = '*.h5'
-    filt_POD(path, nfiles, pat, f_cf=0.4, fs=14.5, lfmodes=[0], nmode=20)
+    filt_POD(path, nfiles, pat, f_cf=0.1, fs=14.5, lfmodes=[0, 1], nmode=20)
 
 

@@ -1,3 +1,3 @@
 @echo
-call activate piv-env
+call activate
 start pythonw ImageOpenerGUI.py

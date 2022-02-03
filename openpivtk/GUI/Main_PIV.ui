@@ -927,7 +927,7 @@
                  <item row="1" column="0">
                   <widget class="QCheckBox" name="pre_staticmask_CB">
                    <property name="text">
-                    <string>Static Mask (still under development)</string>
+                    <string>Static Mask</string>
                    </property>
                   </widget>
                  </item>
@@ -948,7 +948,7 @@
                  <item row="1" column="1" colspan="3">
                   <widget class="QLineEdit" name="pre_sm_path_LE">
                    <property name="placeholderText">
-                    <string>Path to the mask image</string>
+                    <string>Static mask name</string>
                    </property>
                   </widget>
                  </item>
