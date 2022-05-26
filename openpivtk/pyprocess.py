@@ -580,9 +580,9 @@ def extended_search_area_piv(
                 row, col = find_subpixel_peak_position(corr, subpixel_method=subpixel_method,
                                 window_correction=window_correction, correction_mask=correction_mask)
     
-                # get displacements, apply coordinate system definition
-                row -= (search_area_size + window_size - 1)/2.0
-                col -= (search_area_size + window_size - 1)/2.0
+                # get displacements, apply coordinate system definition (displacement = distance of peak from the middle)
+                row -= np.floor((search_area_size + window_size - 1)/2.0)
+                col -= np.floor((search_area_size + window_size - 1)/2.0)
                 u[k,m],v[k,m] = -col, row 
                 
                 # get signal to noise ratio
@@ -656,8 +656,8 @@ def find_secondary_velocity(corr, window_size, search_area_size, subpixel_method
     tmp[iini:ifin, jini:jfin] = ma.masked
     # use the masked array to find the secondary displacement and sig2noise ratio
     row, col = find_subpixel_peak_position(tmp, subpixel_method=subpixel_method, window_correction=window_correction, correction_mask=correction_mask)
-    row -= (search_area_size + window_size - 1)/2.0
-    col -= (search_area_size + window_size - 1)/2.0
+    row -= np.floor((search_area_size + window_size - 1)/2.0)
+    col -= np.floor((search_area_size + window_size - 1)/2.0)
     u, v = -col, row
     if sig2noise_method is not None:
         s2n = sig2noise_ratio(tmp, sig2noise_method=sig2noise_method, width=width)

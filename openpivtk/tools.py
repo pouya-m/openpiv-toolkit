@@ -721,7 +721,7 @@ def save_h5(fname, data, variables, mode='1D', grp_names=None, naming='auto'):
     hf.close()
 
 
-def load_h5(fname, mode='1D', ntime='all', ds='all'):
+def load_h5(fname, mode='1D', ntime='all', ds='all', specificTimes=None):
     """
     Description
     ----------
@@ -741,6 +741,11 @@ def load_h5(fname, mode='1D', ntime='all', ds='all'):
         grps = groups
     else:
         grps = groups[0:ntime]
+    # if we want specific times, we overwrite the grps
+    if specificTimes is not None:
+        grps = []
+        for specificTime in specificTimes:
+            grps.append(groups[specificTime])
 
     if mode == '1D':
         data = np.zeros((shape[0]*shape[1],len(dss),len(grps)))
