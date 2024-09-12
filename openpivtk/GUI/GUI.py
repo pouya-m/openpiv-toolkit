@@ -23,7 +23,7 @@ from PySide2 import QtWidgets
 from PySide2.QtCore import QThread, Signal, QTimer, Qt
 from PySide2.QtGui import QIcon, QPixmap
 import Main_PIV
-from openpivtk import tools, validation, filters, pyprocess, scaling, smoothn, postprocessing, modal, spectral
+from openpivtk import tools, validation, filters, pyprocess, scaling, smoothn, postprocessing, modal, spectral, preprocess
 import numpy as np
 import os, sys, glob
 from functools import partial
@@ -789,6 +789,7 @@ class PIVProcessThread(QThread):
         self.stop_timer.timeout.connect(self.stopProcess)
         self.stop_timer.start(500)
         self.save_type = 'h5'
+        self.stitching = 'True'
         
     progress_sig = Signal(str)  #signals have to be defined as class variables
 
@@ -817,7 +818,10 @@ class PIVProcessThread(QThread):
                         background_b = tools.imread(bgb_file)
                     else:
                         self.progress_sig.emit('finding background...')
-                        background_a, background_b = task.find_background2(n_files=int(self.pre['bg_nf']))
+                        if self.stitching == 'True':
+                            background_a, background_b = task.find_background2(n_files=int(self.pre['bg_nf']), stitchingFunc=costumStitching)
+                        else:
+                            background_a, background_b = task.find_background2(n_files=int(self.pre['bg_nf']))
                         imsave(os.path.join(analysis_path, 'background_a.TIF'), background_a)
                         imsave(os.path.join(analysis_path, 'background_b.TIF'), background_b)
                 else:
@@ -828,8 +832,12 @@ class PIVProcessThread(QThread):
                     if os.path.exists(st_mask_file):
                         st_mask = tools.imread(st_mask_file)
                         self.progress_sig.emit('static mask applied...')
+                    elif (self.pre['sm_pa'] == 'costumMask'):
+                        self.progress_sig.emit('calculating costumMask function...')
+                        st_mask = self.costumMask(background_b)
+                        imsave(os.path.join(analysis_path, 'staticMask.TIF'), st_mask)
                     else:
-                        self.progress_sig.emit('static mask missing...')
+                        self.progress_sig.emit('static mask not found...')
                         st_mask = None
                 else:
                     st_mask = None
@@ -837,12 +845,15 @@ class PIVProcessThread(QThread):
                 # piv+post process
                 self.progress_sig.emit('main process...')
                 task.n_files = int(self.exp['nf'])
-                Process = partial(mainPIVProcess, st_mask=st_mask, bga=background_a, bgb=background_b, pro=self.pro, pos=self.pos, processed_files=self.processed_files)
+                Process = partial(mainPIVProcess, st_mask=st_mask, bga=background_a, bgb=background_b, pro=self.pro, pos=self.pos, processed_files=self.processed_files, stitching=self.stitching)
                 data = task.run( func = Process, n_cpus=int(self.pro['nc']) )
 
                 # initialize variables to hold data
                 im_file, *_ = glob.glob(os.path.join(data_dir, self.exp['patA']))
-                image = tools.imread(im_file)
+                if self.stitching == 'True':
+                    image = costumStitching(im_file)
+                else:
+                    image = tools.imread(im_file)
                 x, y = pyprocess.get_coordinates(image.shape, int(self.pro['ws']), int(self.pro['ol']))
                 # do field manipulation and scaling on x and y
                 if self.pos['fm_st'] == 'True':
@@ -862,19 +873,51 @@ class PIVProcessThread(QThread):
                 
         return True
 
-    #does not work as intended (timer event is ignored because the program is busy running the 'task.run' function)
+    # does not work as intended (timer event is ignored because the program is busy running the 'task.run' function)
     def stopProcess(self):
         if self.stop == True:
             self.quit()
             print('trying to quit...')
 
+    # added function for calculating static mask (can be modified for specific use cases)
+    def costumMask(self, bg):
+        import skimage
+        mask = np.zeros((1192, 1600), dtype=np.uint8)
+        dm = preprocess.dynamic_masking(bg, method = "intensity", filter_size=1, threshold=0.005)
+        mask[ (dm == 0) & (bg > 400) ] = 255
+        mask = skimage.morphology.erosion(mask)
+        mask = skimage.morphology.dilation(mask)
+        mask = skimage.morphology.dilation(mask)
 
-def mainPIVProcess( args, st_mask, bga, bgb, pro, pos, processed_files):
+        return mask
+    
+# added function for stitching images together (can be modified for specific use cases and turned on/off using the self.Stitching boolian)
+def costumStitching(fileL):
+    fileR = fileL.split(".L")[0] + '.R' + fileL.split(".L")[1]
+    frameL = tools.imread(fileL)
+    frameR = np.fliplr(np.flipud(tools.imread(fileR)))
+
+    HCut = 88
+    VCut_L = 32 + 25  # added 25 to favor the right camera since it has less dark corners
+    VCut_R = 829 + 25
+
+    frameR = frameR[0:VCut_R, HCut:-1]
+    frameL = frameL[VCut_L:-1, 0:-1-HCut]
+
+    return np.vstack((frameR, frameL))
+
+
+
+def mainPIVProcess( args, st_mask, bga, bgb, pro, pos, processed_files, stitching):
     # unpacking the arguments
     file_a, file_b, counter = args
     # read images
-    frame_a  = tools.imread( file_a )
-    frame_b  = tools.imread( file_b )
+    if stitching == 'True':
+        frame_a = costumStitching( file_a)
+        frame_b = costumStitching( file_b)
+    else:
+        frame_a  = tools.imread( file_a )
+        frame_b  = tools.imread( file_b )
     # background removal
     if bga is not None:
         frame_a = frame_a - bga

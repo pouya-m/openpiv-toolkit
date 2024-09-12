@@ -198,7 +198,7 @@ class ModalAnalysis():
     def extractSingleFreqAvg(self, fd, fs, fdim=1):
         """limits the frequency content in the flow field such that the remaining field varies only
          at the desired frequency given by fd, shortcut to calculate phi=psi*exp(i2pift). this is averaged
-         over time as it uses fft of the whole signal. consider using 'extractFreqField' function bellow instead..."""
+         over time as it uses fft of the whole signal. consider using 'extractFreqField' function bellow instead for time resolved analysis"""
 
         Af = np.fft.rfft(self.A, axis=1)*2/self.N
         f = np.fft.rfftfreq(self.A.shape[1], 1.0/fs)*fdim

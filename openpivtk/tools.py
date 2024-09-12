@@ -483,13 +483,13 @@ class Multiprocesser():
         return background_a, background_b
 
     # vectorized find_background (better and faster method)
-    def find_background2(self, n_files):
+    def find_background2(self, n_files, stitchingFunc = None):
         """Finds the background of a and b set of images"""
 
         print('finding background image...')
-        background_a = find_bg2(self.files_a[0:n_files])
+        background_a = find_bg2(self.files_a[0:n_files], stitchingFunc)
         print('- done finding background for image set A')
-        background_b = find_bg2(self.files_b[0:n_files])
+        background_b = find_bg2(self.files_b[0:n_files], stitchingFunc)
         print('- done finding background for image set B')
 
         return background_a, background_b
@@ -671,14 +671,20 @@ def find_bg(list_file=None, list_img=None):
 
 
 # vectorized find_bg:
-def find_bg2(file_list):
+def find_bg2(file_list, stitchingFunc = None):
     """finds the background for file list, similar to mark_background2 function but
-    vectorized and thus, much faster"""
-    
-    sample_img = imread(file_list[0])
+    vectorized and thus, much faster. if provided, the stitching function replaces the imread
+    and returns a stitched image"""
+
+    if stitchingFunc != None:
+        imageread = stitchingFunc
+    else:
+        imageread = imread
+
+    sample_img = imageread(file_list[0])
     IMG = np.zeros((sample_img.shape[0],sample_img.shape[1],len(file_list)), dtype=np.int32)
     for i, fl in enumerate(file_list):
-        IMG[:,:,i] = imread(fl)
+        IMG[:,:,i] = imageread(fl)
 
     return IMG.min(axis=2)
 
